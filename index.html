@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>木村のミニゲーム（障害物つき）</title>
+<title>木村のミニゲーム（完全版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
@@ -26,6 +26,7 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+// ===== 画面サイズ =====
 canvas.width = window.innerWidth;
 canvas.height = 400;
 
@@ -36,31 +37,21 @@ function playSound(type) {
   const gain = audioCtx.createGain();
   osc.connect(gain);
   gain.connect(audioCtx.destination);
-
   if (type === "jump") osc.frequency.value = 500;
   if (type === "coin") osc.frequency.value = 800;
   if (type === "goal") osc.frequency.value = 1000;
   if (type === "gameover") osc.frequency.value = 150;
-
   osc.start();
   gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
 }
 
 // ===== プレイヤー =====
-const player = {
-  x: 50,
-  y: 300,
-  width: 30,
-  height: 40,
-  dy: 0,
-  gravity: 0.6,
-  jumpPower: -12,
-  onGround: true
-};
+const player = { x: 50, y: 300, width: 30, height: 40, dy: 0, gravity: 0.6, jumpPower: -12, onGround: true };
 
+// ===== 地面 =====
 const ground = { y: 350 };
 
-// ===== 障害物（ブロック）=====
+// ===== 障害物（ブロック） =====
 let blocks = [
   { x: 500, y: 300, width: 40, height: 50 },
   { x: 800, y: 280, width: 40, height: 70 },
@@ -68,7 +59,9 @@ let blocks = [
 ];
 
 // ===== 敵 =====
-let enemies = [{ x: 700, y: 320, size: 30 }];
+let enemies = [
+  { x: 700, y: 320, size: 30, speed: -2 }
+];
 
 // ===== コイン =====
 let coins = [
@@ -79,32 +72,62 @@ let coins = [
 // ===== ゴール =====
 let goal = { x: 1600, y: 300, width: 20, height: 50 };
 
+// ===== スコア =====
 let score = 0;
 let cameraX = 0;
 
+// ===== 入力 =====
 let keys = {};
 let touchJump = false;
 
+// タップ用ボタン
+const jumpButton = { x: canvas.width - 100, y: canvas.height - 100, size: 80 };
+
 document.addEventListener("keydown", e => keys[e.code] = true);
 document.addEventListener("keyup", e => keys[e.code] = false);
-canvas.addEventListener("touchstart", () => touchJump = true);
-canvas.addEventListener("mousedown", () => touchJump = true);
 
-// ===== キャラ描画 =====
+canvas.addEventListener("touchstart", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const tx = touch.clientX - rect.left;
+  const ty = touch.clientY - rect.top;
+  if (tx > jumpButton.x && tx < jumpButton.x + jumpButton.size &&
+      ty > jumpButton.y && ty < jumpButton.y + jumpButton.size) touchJump = true;
+});
+
+canvas.addEventListener("mousedown", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  if (mx > jumpButton.x && mx < jumpButton.x + jumpButton.size &&
+      my > jumpButton.y && my < jumpButton.y + jumpButton.size) touchJump = true;
+});
+
+// ===== キャラ描画（マリオ風） =====
 function drawPlayer(x, y) {
+  // 帽子
   ctx.fillStyle = "red";
   ctx.fillRect(x, y, 30, 10);
+  // 顔
   ctx.fillStyle = "#ffcc99";
   ctx.fillRect(x + 5, y + 10, 20, 15);
+  // 目
   ctx.fillStyle = "black";
   ctx.fillRect(x + 10, y + 15, 3, 3);
+  // ヒゲ
   ctx.fillRect(x + 8, y + 22, 15, 3);
+  // 服
   ctx.fillStyle = "blue";
   ctx.fillRect(x + 5, y + 25, 20, 15);
+  // 足
+  ctx.fillStyle = "brown";
+  ctx.fillRect(x + 5, y + 38, 8, 5);
+  ctx.fillRect(x + 17, y + 38, 8, 5);
 }
 
 // ===== 更新 =====
 function update() {
+  // ジャンプ
   if ((keys["Space"] || touchJump) && player.onGround) {
     player.dy = player.jumpPower;
     player.onGround = false;
@@ -122,53 +145,45 @@ function update() {
     player.onGround = true;
   }
 
-  // ===== ブロック衝突 =====
+  // ブロック衝突
   blocks.forEach(b => {
     let px = player.x + cameraX;
-
-    if (
-      px < b.x + b.width &&
-      px + player.width > b.x &&
-      player.y + player.height > b.y &&
-      player.y < b.y + b.height
-    ) {
-      // 上から乗る
-      if (player.dy > 0) {
-        player.y = b.y - player.height;
-        player.dy = 0;
-        player.onGround = true;
-      }
+    if (px < b.x + b.width && px + player.width > b.x &&
+        player.y + player.height > b.y && player.y < b.y + b.height) {
+      if (player.dy > 0) { player.y = b.y - player.height; player.dy = 0; player.onGround = true; }
     }
   });
 
   cameraX += 2;
 
-  // 敵
+  // 敵移動＋跳ね返り
   enemies.forEach(e => {
-    e.x -= 4;
+    e.x += e.speed;
+    blocks.forEach(b => {
+      if (e.x < b.x + b.width && e.x + e.size > b.x &&
+          e.y < b.y + b.height && e.y + e.size > b.y) {
+        e.speed *= -1;
+        if (e.speed > 0) e.x = b.x + b.width; else e.x = b.x - e.size;
+      }
+    });
+    if (e.x < 0 || e.x > 2000) e.speed *= -1;
 
-    if (
-      player.x + cameraX < e.x + e.size &&
-      player.x + player.width + cameraX > e.x &&
-      player.y < e.y + e.size &&
-      player.y + player.height > e.y
-    ) {
+    // 衝突判定
+    if (player.x + cameraX < e.x + e.size &&
+        player.x + player.width + cameraX > e.x &&
+        player.y < e.y + e.size &&
+        player.y + player.height > e.y) {
       playSound("gameover");
-      setTimeout(() => {
-        alert("ゲームオーバー！スコア：" + score);
-        location.reload();
-      }, 100);
+      setTimeout(() => { alert("ゲームオーバー！スコア：" + score); location.reload(); }, 100);
     }
   });
 
   // コイン
   coins.forEach(c => {
-    if (
-      player.x + cameraX < c.x + c.size &&
-      player.x + player.width + cameraX > c.x &&
-      player.y < c.y + c.size &&
-      player.y + player.height > c.y
-    ) {
+    if (player.x + cameraX < c.x + c.size &&
+        player.x + player.width + cameraX > c.x &&
+        player.y < c.y + c.size &&
+        player.y + player.height > c.y) {
       score += 10;
       playSound("coin");
       c.x = -100;
@@ -176,17 +191,12 @@ function update() {
   });
 
   // ゴール
-  if (
-    player.x + cameraX < goal.x + goal.width &&
-    player.x + player.width + cameraX > goal.x &&
-    player.y < goal.y + goal.height &&
-    player.y + player.height > goal.y
-  ) {
+  if (player.x + cameraX < goal.x + goal.width &&
+      player.x + player.width + cameraX > goal.x &&
+      player.y < goal.y + goal.height &&
+      player.y + player.height > goal.y) {
     playSound("goal");
-    setTimeout(() => {
-      alert("クリア！スコア：" + score);
-      location.reload();
-    }, 100);
+    setTimeout(() => { alert("クリア！スコア：" + score); location.reload(); }, 100);
   }
 }
 
@@ -200,26 +210,18 @@ function draw() {
 
   // ブロック
   ctx.fillStyle = "#8B4513";
-  blocks.forEach(b => {
-    ctx.fillRect(b.x - cameraX, b.y, b.width, b.height);
-  });
+  blocks.forEach(b => ctx.fillRect(b.x - cameraX, b.y, b.width, b.height));
 
   // プレイヤー
   drawPlayer(player.x, player.y);
 
   // 敵
   ctx.fillStyle = "#8B0000";
-  enemies.forEach(e => {
-    ctx.fillRect(e.x - cameraX, e.y, e.size, e.size);
-  });
+  enemies.forEach(e => ctx.fillRect(e.x - cameraX, e.y, e.size, e.size));
 
   // コイン
   ctx.fillStyle = "gold";
-  coins.forEach(c => {
-    ctx.beginPath();
-    ctx.arc(c.x - cameraX, c.y, c.size / 2, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  coins.forEach(c => { ctx.beginPath(); ctx.arc(c.x - cameraX, c.y, c.size/2, 0, Math.PI*2); ctx.fill(); });
 
   // ゴール
   ctx.fillStyle = "#000";
@@ -227,29 +229,23 @@ function draw() {
   ctx.fillStyle = "red";
   ctx.fillRect(goal.x - cameraX, goal.y, 30, 20);
 
-  // UI
+  // UI: スコア
   ctx.fillStyle = "#333";
   ctx.font = "20px sans-serif";
   ctx.fillText("スコア: " + score, 20, 30);
-  ctx.fillText("ジャンプで障害物を越えろ！", 20, 60);
+
+  // ジャンプボタン表示
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.fillRect(jumpButton.x, jumpButton.y, jumpButton.size, jumpButton.size);
+  ctx.fillStyle = "#333";
+  ctx.font = "16px sans-serif";
+  ctx.fillText("JUMP", jumpButton.x + 10, jumpButton.y + 45);
 }
 
 // ===== ループ =====
-function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
+function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
 gameLoop();
 </script>
 
 </body>
 </html>
-// ジャンプボタン
-ctx.fillStyle = "rgba(255,255,255,0.7)";
-ctx.fillRect(jumpButton.x, jumpButton.y, jumpButton.size, jumpButton.size);
-
-ctx.fillStyle = "#333";
-ctx.font = "16px sans-serif";
-ctx.fillText("JUMP", jumpButton.x + 10, jumpButton.y + 45);
