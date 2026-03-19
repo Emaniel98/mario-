@@ -246,3 +246,10 @@ gameLoop();
 
 </body>
 </html>
+// ジャンプボタン
+ctx.fillStyle = "rgba(255,255,255,0.7)";
+ctx.fillRect(jumpButton.x, jumpButton.y, jumpButton.size, jumpButton.size);
+
+ctx.fillStyle = "#333";
+ctx.font = "16px sans-serif";
+ctx.fillText("JUMP", jumpButton.x + 10, jumpButton.y + 45);
