@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>木村のミニゲーム（完全版）</title>
+<title>木村のミニゲーム（長いステージ）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
@@ -55,22 +55,34 @@ const ground = { y: 350 };
 let blocks = [
   { x: 500, y: 300, width: 40, height: 50 },
   { x: 800, y: 280, width: 40, height: 70 },
-  { x: 1100, y: 310, width: 40, height: 40 }
+  { x: 1100, y: 310, width: 40, height: 40 },
+  { x: 1400, y: 300, width: 40, height: 50 },
+  { x: 1800, y: 280, width: 40, height: 60 },
+  { x: 2200, y: 310, width: 40, height: 40 },
+  { x: 2600, y: 300, width: 40, height: 50 },
+  { x: 2900, y: 280, width: 40, height: 70 }
 ];
 
 // ===== 敵 =====
 let enemies = [
-  { x: 700, y: 320, size: 30, speed: -2 }
+  { x: 700, y: 320, size: 30, speed: -2 },
+  { x: 1700, y: 320, size: 30, speed: 2 },
+  { x: 2300, y: 320, size: 30, speed: -2 },
+  { x: 2700, y: 320, size: 30, speed: 2 }
 ];
 
 // ===== コイン =====
 let coins = [
   { x: 600, y: 200, size: 20 },
-  { x: 1000, y: 180, size: 20 }
+  { x: 1000, y: 180, size: 20 },
+  { x: 1500, y: 250, size: 20 },
+  { x: 2000, y: 200, size: 20 },
+  { x: 2500, y: 180, size: 20 },
+  { x: 2800, y: 250, size: 20 }
 ];
 
 // ===== ゴール =====
-let goal = { x: 1600, y: 300, width: 20, height: 50 };
+let goal = { x: 3500, y: 300, width: 20, height: 50 };
 
 // ===== スコア =====
 let score = 0;
@@ -191,61 +203,4 @@ function update() {
   });
 
   // ゴール
-  if (player.x + cameraX < goal.x + goal.width &&
-      player.x + player.width + cameraX > goal.x &&
-      player.y < goal.y + goal.height &&
-      player.y + player.height > goal.y) {
-    playSound("goal");
-    setTimeout(() => { alert("クリア！スコア：" + score); location.reload(); }, 100);
-  }
-}
-
-// ===== 描画 =====
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // 地面
-  ctx.fillStyle = "#228B22";
-  ctx.fillRect(0, ground.y, canvas.width, 50);
-
-  // ブロック
-  ctx.fillStyle = "#8B4513";
-  blocks.forEach(b => ctx.fillRect(b.x - cameraX, b.y, b.width, b.height));
-
-  // プレイヤー
-  drawPlayer(player.x, player.y);
-
-  // 敵
-  ctx.fillStyle = "#8B0000";
-  enemies.forEach(e => ctx.fillRect(e.x - cameraX, e.y, e.size, e.size));
-
-  // コイン
-  ctx.fillStyle = "gold";
-  coins.forEach(c => { ctx.beginPath(); ctx.arc(c.x - cameraX, c.y, c.size/2, 0, Math.PI*2); ctx.fill(); });
-
-  // ゴール
-  ctx.fillStyle = "#000";
-  ctx.fillRect(goal.x - cameraX, goal.y, goal.width, goal.height);
-  ctx.fillStyle = "red";
-  ctx.fillRect(goal.x - cameraX, goal.y, 30, 20);
-
-  // UI: スコア
-  ctx.fillStyle = "#333";
-  ctx.font = "20px sans-serif";
-  ctx.fillText("スコア: " + score, 20, 30);
-
-  // ジャンプボタン表示
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.fillRect(jumpButton.x, jumpButton.y, jumpButton.size, jumpButton.size);
-  ctx.fillStyle = "#333";
-  ctx.font = "16px sans-serif";
-  ctx.fillText("JUMP", jumpButton.x + 10, jumpButton.y + 45);
-}
-
-// ===== ループ =====
-function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
-gameLoop();
-</script>
-
-</body>
-</html>
+  if (player.x + cameraX < goal.x + goal
