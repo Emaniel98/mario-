@@ -2,12 +2,14 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>木村のミニゲームDX+</title>
+<title>木村のミニゲーム（障害物つき）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body {
     margin: 0;
     overflow: hidden;
     background: linear-gradient(#87CEEB, #ffffff);
+    touch-action: manipulation;
   }
   canvas {
     display: block;
@@ -18,15 +20,17 @@
 </head>
 <body>
 
-<canvas id="game" width="800" height="400"></canvas>
+<canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+canvas.width = window.innerWidth;
+canvas.height = 400;
+
 // ===== 音 =====
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
 function playSound(type) {
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -47,57 +51,67 @@ const player = {
   x: 50,
   y: 300,
   width: 30,
-  height: 30,
+  height: 40,
   dy: 0,
   gravity: 0.6,
   jumpPower: -12,
   onGround: true
 };
 
-// ===== 地面 =====
 const ground = { y: 350 };
 
-// ===== 敵 =====
-let enemies = [
-  { x: 600, y: 320, size: 30 }
+// ===== 障害物（ブロック）=====
+let blocks = [
+  { x: 500, y: 300, width: 40, height: 50 },
+  { x: 800, y: 280, width: 40, height: 70 },
+  { x: 1100, y: 310, width: 40, height: 40 }
 ];
+
+// ===== 敵 =====
+let enemies = [{ x: 700, y: 320, size: 30 }];
 
 // ===== コイン =====
 let coins = [
-  { x: 400, y: 250, size: 20 },
-  { x: 700, y: 200, size: 20 }
+  { x: 600, y: 200, size: 20 },
+  { x: 1000, y: 180, size: 20 }
 ];
 
 // ===== ゴール =====
-let goal = {
-  x: 1500,
-  y: 300,
-  width: 20,
-  height: 50
-};
+let goal = { x: 1600, y: 300, width: 20, height: 50 };
 
-// ===== スコア =====
 let score = 0;
-
-// ===== カメラ（スクロール用）=====
 let cameraX = 0;
 
 let keys = {};
+let touchJump = false;
 
 document.addEventListener("keydown", e => keys[e.code] = true);
 document.addEventListener("keyup", e => keys[e.code] = false);
+canvas.addEventListener("touchstart", () => touchJump = true);
+canvas.addEventListener("mousedown", () => touchJump = true);
+
+// ===== キャラ描画 =====
+function drawPlayer(x, y) {
+  ctx.fillStyle = "red";
+  ctx.fillRect(x, y, 30, 10);
+  ctx.fillStyle = "#ffcc99";
+  ctx.fillRect(x + 5, y + 10, 20, 15);
+  ctx.fillStyle = "black";
+  ctx.fillRect(x + 10, y + 15, 3, 3);
+  ctx.fillRect(x + 8, y + 22, 15, 3);
+  ctx.fillStyle = "blue";
+  ctx.fillRect(x + 5, y + 25, 20, 15);
+}
 
 // ===== 更新 =====
 function update() {
-
-  // ジャンプ
-  if (keys["Space"] && player.onGround) {
+  if ((keys["Space"] || touchJump) && player.onGround) {
     player.dy = player.jumpPower;
     player.onGround = false;
     playSound("jump");
   }
+  touchJump = false;
 
-  // 重力
   player.dy += player.gravity;
   player.y += player.dy;
 
@@ -108,14 +122,31 @@ function update() {
     player.onGround = true;
   }
 
-  // カメラ移動（右へ進む）
+  // ===== ブロック衝突 =====
+  blocks.forEach(b => {
+    let px = player.x + cameraX;
+
+    if (
+      px < b.x + b.width &&
+      px + player.width > b.x &&
+      player.y + player.height > b.y &&
+      player.y < b.y + b.height
+    ) {
+      // 上から乗る
+      if (player.dy > 0) {
+        player.y = b.y - player.height;
+        player.dy = 0;
+        player.onGround = true;
+      }
+    }
+  });
+
   cameraX += 2;
 
   // 敵
   enemies.forEach(e => {
     e.x -= 4;
 
-    // 当たり判定
     if (
       player.x + cameraX < e.x + e.size &&
       player.x + player.width + cameraX > e.x &&
@@ -140,11 +171,11 @@ function update() {
     ) {
       score += 10;
       playSound("coin");
-      c.x = -100; // 消す
+      c.x = -100;
     }
   });
 
-  // ===== ゴール判定 =====
+  // ゴール
   if (
     player.x + cameraX < goal.x + goal.width &&
     player.x + player.width + cameraX > goal.x &&
@@ -167,9 +198,14 @@ function draw() {
   ctx.fillStyle = "#228B22";
   ctx.fillRect(0, ground.y, canvas.width, 50);
 
+  // ブロック
+  ctx.fillStyle = "#8B4513";
+  blocks.forEach(b => {
+    ctx.fillRect(b.x - cameraX, b.y, b.width, b.height);
+  });
+
   // プレイヤー
-  ctx.fillStyle = "#ff69b4";
-  ctx.fillRect(player.x, player.y, player.width, player.height);
+  drawPlayer(player.x, player.y);
 
   // 敵
   ctx.fillStyle = "#8B0000";
@@ -185,18 +221,17 @@ function draw() {
     ctx.fill();
   });
 
-  // ゴール（旗）
+  // ゴール
   ctx.fillStyle = "#000";
   ctx.fillRect(goal.x - cameraX, goal.y, goal.width, goal.height);
   ctx.fillStyle = "red";
   ctx.fillRect(goal.x - cameraX, goal.y, 30, 20);
 
-  // スコア
+  // UI
   ctx.fillStyle = "#333";
   ctx.font = "20px sans-serif";
   ctx.fillText("スコア: " + score, 20, 30);
-
-  ctx.fillText("ゴールを目指せ！", 20, 60);
+  ctx.fillText("ジャンプで障害物を越えろ！", 20, 60);
 }
 
 // ===== ループ =====
